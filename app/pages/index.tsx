@@ -1,3 +1,7 @@
+import type { NextPage } from "next";
+import Head from "next/head";
+import Image from "next/image";
+import styles from "../styles/Home.module.css";
 import * as React from "react";
 import {
   ChakraProvider,
@@ -11,10 +15,10 @@ import {
   TabPanel,
   Grid
 } from "@chakra-ui/react";
-import Card from "./Card";
-import { ColorModeSwitcher } from "./ColorModeSwitcher";
+import Card from "@components/Card";
+import { ColorModeSwitcher } from "@components/ColorModeSwitcher";
 
-export const App = () => {
+const Home: NextPage = () => {
   const ref = React.useRef() as React.MutableRefObject<HTMLInputElement>;
 
   return (
@@ -51,7 +55,9 @@ export const App = () => {
           <ColorModeSwitcher justifySelf="flex-end" alignContent="center" />
         </Grid>
       </Box>
-      <Box class="body" ref={ref}></Box>
+      <Box className="body" ref={ref}></Box>
     </ChakraProvider>
   );
 };
+
+export default Home;
