@@ -1,19 +1,31 @@
 import puppeteer from "puppeteer";
-import fs from "fs";
+import { MongoClient } from "mongodb";
+import dotenv from "dotenv";
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+dotenv.config();
 
-const persistData = (newData) => {
-  const date = Date.now();
-  let data = fs.readFileSync("./data.json", "utf-8");
-  data = JSON.parse(data);
+// Connection URI
+const uri = process.env.MONGO_URI;
 
-  data[date] = newData;
+const client = new MongoClient(uri);
 
-  const finalData = JSON.stringify(data);
-  fs.writeFileSync("./data.json", finalData, "utf-8");
+const saveData = async (documentData) => {
+  try {
+    // Connect the client to the server
+    await client.connect();
+    // Establish and verify connection
+    const db = await client.db("Wiki");
+    const collection = await db.collection("quotes");
+
+    const insertManyresult = await collection.insertMany(documentData);
+    const ids = insertManyresult.insertedIds;
+    console.log(`Inserted ${JSON.stringify(ids)} ids`);
+  } catch (error) {
+    throw `Error while persisting data: ${error}`;
+  } finally {
+    // Ensures that the client will close when you finish/error
+    await client.close();
+  }
 };
 
 const goToWikipediaPage = async (browser) => {
@@ -25,6 +37,50 @@ const goToWikipediaPage = async (browser) => {
   return page;
 };
 
+const getTodayDate = () => {
+  return new Date().toISOString();
+};
+
+const parseBySelector = async (page, cssSelector, type) => {
+  if (!page) {
+    throw "Page is not set, restart the crawler";
+  }
+  const parsedList = [];
+
+  try {
+    const itemList = await page.$$(cssSelector);
+
+    // Tratar texto
+    for (let item of itemList) {
+      // Encontra elemento html da lista e seu texto
+      const text = await item.evaluate((el) => el.innerText);
+
+      // Avalia o mesmo elemento mas buscando pelos links vinculados a ele
+      const linkList = await item.$$eval("a", (links) =>
+        links.map((link) => ({ value: link.href, text: link.innerText }))
+      );
+
+      console.log(
+        `Collected new text: ${text.substring(0, 10)}... with ${
+          linkList.length
+        } links`
+      );
+      // Salva objeto contendo texto e links!
+      parsedList.push({
+        type,
+        fullText: text,
+        links: linkList,
+        rating: 0,
+        reviewCount: 0,
+        date: getTodayDate()
+      });
+    }
+  } catch (err) {
+    console.log(`Error while parsing ${type}, Trace: \n ${err}`);
+  }
+  return parsedList;
+};
+
 (async () => {
   const browser = await puppeteer.launch({
     headless: false,
@@ -33,30 +89,25 @@ const goToWikipediaPage = async (browser) => {
 
   // Ir para pagina principal wikipedia
   const page = await goToWikipediaPage(browser);
-  const didYouKnowList = await page.$$("#mp-dyk > ul > li");
-  const parsedList = [];
+  const selectors = {
+    onThisDay: "#mp-otd > ul > li",
+    inTheNews: "#mp-itn > ul > li",
+    didYouKnow: "#mp-dyk > ul > li"
+  };
 
-  // Tratar texto
-  for (let item of didYouKnowList) {
-    // Encontra elemento html da lista e seu texto
-    let text = await item.evaluate((el) => el.innerText);
+  // Scrappers
+  try {
+    for (const [type, selector] of Object.entries(selectors)) {
+      const data = await parseBySelector(page, selector, type);
 
-    // Avalia o mesmo elemento mas buscando pelos links vinculados a ele
-    let linkList = await item.$$eval("a", (links) =>
-      links.map((link) => ({ value: link.href, text: link.innerText }))
-    );
-
-    // Salva objeto contendo texto e links!
-    parsedList.push({
-      fullText: text,
-      links: linkList
-    });
-  }
-
-  // Persistir dados tratados
-  if (parsedList) {
-    persistData(parsedList);
-    console.log("Dados salvos com sucesso!");
+      // Persistir dados tratados
+      if (data) {
+        saveData(data);
+        console.log("Dados salvos com sucesso!");
+      }
+    }
+  } catch (error) {
+    throw `Scrapping error ${error}`;
   }
 
   // Finalizar browser criado

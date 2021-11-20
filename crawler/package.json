@@ -7,9 +7,11 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "crawl": "node crawler/index.js"
+    "crawl": "node ./index.js"
   },
   "dependencies": {
+    "dotenv": "^10.0.0",
+    "mongodb": "^4.1.4",
     "puppeteer": "^10.4.0"
   }
 }
