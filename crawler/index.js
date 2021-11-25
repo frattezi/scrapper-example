@@ -65,6 +65,7 @@ const parseBySelector = async (page, cssSelector, type) => {
           linkList.length
         } links`
       );
+
       // Salva objeto contendo texto e links!
       parsedList.push({
         type,
@@ -72,7 +73,9 @@ const parseBySelector = async (page, cssSelector, type) => {
         links: linkList,
         rating: 0,
         reviewCount: 0,
-        date: getTodayDate()
+        date: getTodayDate(),
+        rating: 0,
+        reviewCount: 0
       });
     }
   } catch (err) {
