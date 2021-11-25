@@ -1,5 +1,7 @@
 # Scrapper Example
 
+![Logo](docs/images/puppeteer.svg)
+
 Exemplo de crawler simples para demonstração na PodCodar :exploding_head:!
 
 ## O que este projeto faz
